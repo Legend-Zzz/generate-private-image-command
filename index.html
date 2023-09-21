@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Private Image Command</title>
+    <script src="./clipboard.min.js"></script>
+    <script>
+        function generateCommands() {
+            const imageList = document.getElementById("imageList").value;
+            const privateRegistry = document.getElementById("privateRegistry").value;
+            const selection = document.getElementById("selection").value;
+            const namespaceChecked = document.getElementById("namespace").checked;
+            const insecureChecked = document.getElementById("insecure").checked;
+
+            const lines = imageList.split('\n').filter(line => line.trim() !== "");
+
+            const result = lines.map(line => {
+                const imageParts = line.split('/');
+                const imageName = imageParts.pop();
+                const imageWithRegistry = `${privateRegistry}/${imageParts.join('/') || imageName}`;
+                const shouldAddNamespace = namespaceChecked ? " -n k8s.io" : "";
+                const shouldAddInsecure = insecureChecked ? "--insecure-registry" : "";
+
+                const checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"]'))
+                    .filter(checkbox => checkbox.checked && ["pull", "tag", "push", "save"].includes(checkbox.name));
+
+                return checkboxes.map(checkbox => {
+                    return generateCommand(selection, checkbox.name, line.trim(), imageWithRegistry, shouldAddNamespace, imageName, shouldAddInsecure);
+                }).filter(command => command !== "").join("\n");
+            }).join("\n");
+
+            if (result !== "") {
+                document.getElementById("result").textContent = result;
+                openModal();
+            }
+        }
+
+        function generateCommand(selection, action, image, imageWithRegistry, namespace, imageName, insecure) {
+            const commands = {
+                docker: {
+                    pull: `docker pull ${image}`,
+                    tag: `docker tag ${image} ${imageWithRegistry}`,
+                    push: `docker push ${imageWithRegistry}`,
+                    save: `docker save ${imageWithRegistry} -o ${imageName.replace(':', '_')}.tar`,
+                },
+                nerdctl: {
+                    pull: `nerdctl${namespace} pull ${image}`,
+                    tag: `nerdctl${namespace} tag ${image} ${imageWithRegistry}`,
+                    push: `nerdctl${namespace} push ${imageWithRegistry} ${insecure}`,
+                    save: `nerdctl${namespace} save ${imageWithRegistry} -o ${imageName.replace(':', '_')}.tar`,
+                },
+            };
+            return commands[selection][action];
+        }
+
+        function toggleNamespaceCheckbox() {
+            let selection = document.getElementById("selection").value;
+            let namespaceLabel = document.getElementById("namespaceLabel");
+            let insecureLabel = document.getElementById("insecureLabel")
+
+            if (selection === "nerdctl") {
+                namespaceLabel.style.display = "inline";
+                insecureLabel.style.display = "inline";
+            } else {
+                namespaceLabel.style.display = "none";
+                insecureLabel.style.display = "none";
+            }
+        }
+
+
+        function openModal() {
+            const modal = document.getElementById('myModal');
+            modal.style.display = 'grid';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('myModal');
+            modal.style.display = 'none';
+            document.getElementById('copyStatus').textContent = '';
+        }
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const copyButton = document.getElementById('copyButton');
+            const copyStatus = document.getElementById('copyStatus');
+            const result = document.getElementById('result');
+
+            const clipboard = new ClipboardJS(copyButton, {
+                text: function () {
+                    return result.textContent;
+                }
+            });
+
+            function updateStatus(message) {
+                copyStatus.textContent = message;
+                setTimeout(function () {
+                    copyStatus.textContent = '';
+                }, 1000);
+            }
+
+            clipboard.on('success', function () {
+                updateStatus('Success');
+            });
+
+            clipboard.on('error', function () {
+                updateStatus('Failed');
+            });
+        });
+
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            text-align: center;
+            background-color: #3498db;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        textarea {
+            margin-bottom: 10px;
+            width: 100%;
+            height: 300px;
+            white-space: pre-line;
+        }
+
+        legend {
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        select {
+            margin-bottom: 15px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        #namespaceLabel,
+        #insecureLabel {
+            display: none;
+        }
+
+        #privateRegistry {
+            margin-bottom: 15px;
+            width: 300px;
+            height: 20px;
+        }
+
+        .myModal {
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            overflow: auto;
+        }
+
+        .modal-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            position: relative;
+            width: 800px;
+            max-width: 90%;
+        }
+
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        #copyButton {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #6c757d;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #result {
+            padding: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+<h1>Generate Private Image Command</h1>
+<div class="container">
+    <form id="dockerForm">
+        <fieldset>
+            <legend>Enter images name</legend>
+            <label for="imageList"></label>
+            <textarea id="imageList" placeholder="One image name per line, for example：
+            harbor.zzz.io/base/mysql:5.7.39
+            registry.k8s.io/pause:3.9
+            redis:7.0"></textarea>
+        </fieldset>
+
+        <fieldset>
+            <legend>Configuration options</legend>
+            <label for="privateRegistry">Private Mirror Address:</label>
+            <input type="text" id="privateRegistry" name="privateRegistry" value="img.zzz.io:5000"><br>
+            <label for="selection">Selection Tools:</label>
+            <select id="selection" name="selection" onchange="toggleNamespaceCheckbox()">
+                <option value="docker">Using docker</option>
+                <option value="nerdctl">Using nerdctl</option>
+            </select><br>
+            <label id="namespaceLabel">
+                <input type="checkbox" name="namespace" id="namespace" value="namespace"> -n k8s.io
+            </label>
+            <label>
+                <input type="checkbox" name="pull" value="pull" checked> pull
+            </label>
+            <label>
+                <input type="checkbox" name="tag" value="tag" checked> tag
+            </label>
+            <label>
+                <input type="checkbox" name="push" value="push"> push
+            </label>
+            <label>
+                <input type="checkbox" name="save" value="save"> save
+            </label>
+            <label id="insecureLabel">
+                <input type="checkbox" name="insecure" id="insecure" value="insecure"> --insecure-registry
+            </label>
+
+        </fieldset>
+
+        <button type="button" onclick="generateCommands()">Generate</button>
+    </form>
+</div>
+
+<div id="myModal" class="myModal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div id="result"></div>
+        <button type="button" id="copyButton">Copy</button>
+        <div id="copyStatus"></div>
+    </div>
+</div>
+</body>
+</html>
