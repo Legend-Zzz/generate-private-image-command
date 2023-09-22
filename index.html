@@ -17,7 +17,8 @@
 
             const result = lines.map(line => {
                 const imageParts = line.split('/');
-                const imageName = imageParts.pop();
+                const lastName = imageParts.slice(-1)[0];
+                const imageName = imageParts.shift();
                 const imageWithRegistry = `${privateRegistry}/${imageParts.join('/') || imageName}`;
                 const shouldAddNamespace = namespaceChecked ? " -n k8s.io" : "";
                 const shouldAddInsecure = insecureChecked ? "--insecure-registry" : "";
@@ -26,7 +27,7 @@
                     .filter(checkbox => checkbox.checked && ["pull", "tag", "push", "save"].includes(checkbox.name));
 
                 return checkboxes.map(checkbox => {
-                    return generateCommand(selection, checkbox.name, line.trim(), imageWithRegistry, shouldAddNamespace, imageName, shouldAddInsecure);
+                    return generateCommand(selection, checkbox.name, line.trim(), imageWithRegistry, shouldAddNamespace, lastName, shouldAddInsecure);
                 }).filter(command => command !== "").join("\n");
             }).join("\n");
 
@@ -36,19 +37,19 @@
             }
         }
 
-        function generateCommand(selection, action, image, imageWithRegistry, namespace, imageName, insecure) {
+        function generateCommand(selection, action, image, imageWithRegistry, namespace, lastName, insecure) {
             const commands = {
                 docker: {
                     pull: `docker pull ${image}`,
                     tag: `docker tag ${image} ${imageWithRegistry}`,
                     push: `docker push ${imageWithRegistry}`,
-                    save: `docker save ${imageWithRegistry} -o ${imageName.replace(':', '_')}.tar`,
+                    save: `docker save ${imageWithRegistry} -o ${lastName.replace(':', '_')}.tar`,
                 },
                 nerdctl: {
                     pull: `nerdctl${namespace} pull ${image}`,
                     tag: `nerdctl${namespace} tag ${image} ${imageWithRegistry}`,
                     push: `nerdctl${namespace} push ${imageWithRegistry} ${insecure}`,
-                    save: `nerdctl${namespace} save ${imageWithRegistry} -o ${imageName.replace(':', '_')}.tar`,
+                    save: `nerdctl${namespace} save ${imageWithRegistry} -o ${lastName.replace(':', '_')}.tar`,
                 },
             };
             return commands[selection][action];
