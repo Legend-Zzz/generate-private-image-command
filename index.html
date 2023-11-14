@@ -6,6 +6,11 @@
     <title>Generate Private Image Command</title>
     <script src="./clipboard.min.js"></script>
     <script>
+        function isDomainName(str) {
+            const domainRegex = /^(?:(?!-)[A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,6}$/;
+            return domainRegex.test(str);
+        }
+        
         function generateCommands() {
             const imageList = document.getElementById("imageList").value;
             const privateRegistry = document.getElementById("privateRegistry").value;
@@ -18,7 +23,11 @@
             const result = lines.map(line => {
                 const imageParts = line.split('/');
                 const lastName = imageParts.slice(-1)[0];
-                const imageName = imageParts.shift();
+                if (isDomainName(imageParts[0])) {
+                    const imageName = imageParts.shift();
+                } else {
+                    const imageName = imageParts.slice(0, -1).join('/');
+                }
                 const imageWithRegistry = `${privateRegistry}/${imageParts.join('/') || imageName}`;
                 const shouldAddNamespace = namespaceChecked ? " -n k8s.io" : "";
                 const shouldAddInsecure = insecureChecked ? "--insecure-registry" : "";
