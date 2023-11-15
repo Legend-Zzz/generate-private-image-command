@@ -10,7 +10,12 @@
             const domainRegex = /^(?:(?!-)[A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,6}$/;
             return domainRegex.test(str);
         }
-        
+
+        function isIP(str) {
+            const ipRegex = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::(\d+))?$/;
+            return ipRegex.test(str);
+        }
+
         function generateCommands() {
             const imageList = document.getElementById("imageList").value;
             const privateRegistry = document.getElementById("privateRegistry").value;
@@ -23,7 +28,7 @@
             const result = lines.map(line => {
                 const imageParts = line.split('/');
                 const lastName = imageParts.slice(-1)[0];
-                if (isDomainName(imageParts[0])) {
+                if (isDomainName(imageParts[0]) || isIP(imageParts[0])) {
                     const imageName = imageParts.shift();
                 } else {
                     const imageName = imageParts.slice(0, -1).join('/');
